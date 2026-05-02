@@ -1,0 +1,91 @@
+# .mx — Save Point
+# Projet : Système d'agents IA
+# Date : 2026-05-02
+# Serveur : Hetzner
+# Repo : https://github.com/mateocaestecker2022-arch/ai-system
+
+---
+
+## Contexte du projet
+
+Système multi-agents centralisé pour optimiser le développement IA.
+- Réduire la consommation de tokens
+- Ne jamais envoyer un projet complet à un modèle
+- Agents mutualisés, projets séparés
+- CLI : `python run.py analyze|fix|optimize|index|serve --project "/chemin"`
+
+Structure actuelle :
+```
+ai-system/
+  agents/        planner, coder, reviewer, memory
+  core/          orchestrator (async), config, llm
+  tools/         indexer, search (FAISS), embedder, file_loader
+  api/           FastAPI (run, stream SSE, index, status, health)
+  deploy/        setup.sh, deploy.sh, nginx.conf, ai-system.service
+  run.py
+  requirements.txt
+```
+
+---
+
+## Squelette des features
+
+### Agents
+- [x] **Agent Planner** — JSON structuré (id, description, target, type, depends_on)
+- [x] **Agent Coder** — diff format, async
+- [x] **Agent Reviewer** — vérif sécurité + bugs, async
+- [x] **Agent Memory** — contexte projet via embeddings FAISS
+
+### Gestion du contexte
+- [x] Indexeur de fichiers projet (chunking 1000 chars)
+- [x] Stockage FAISS + chunks.json dans `/projet/.ai/`
+- [x] Détection index obsolète (mtime)
+- [x] Limitation à 5 fichiers max par requête
+
+### Recherche
+- [x] Recherche vectorielle (sentence-transformers all-MiniLM-L6-v2)
+- [x] Cosine similarity via FAISS IndexFlatIP
+- [ ] Recherche hybride (keyword + vectoriel)
+
+### Pipeline
+- [x] Planner + Memory en parallèle (asyncio.gather)
+- [x] Coder après Memory
+- [x] Reviewer après Coder
+- [ ] Gestion des dépendances entre tâches (depends_on)
+
+### API FastAPI
+- [x] POST /run — pipeline complet
+- [x] POST /stream — SSE token par token
+- [x] POST /index — indexe un projet
+- [x] GET /status — vérifie fraîcheur de l'index
+- [x] GET /health
+
+### Déploiement Hetzner
+- [x] setup.sh — Ubuntu 22.04, Python, nginx, systemd
+- [x] ai-system.service — uvicorn 2 workers, restart auto
+- [x] nginx.conf — reverse proxy + support SSE
+- [x] deploy.sh — git pull + restart
+
+### Évolutions futures
+- [ ] Interface graphique
+- [ ] Recherche hybride (keyword + vectoriel)
+- [ ] Gestion depends_on dans le pipeline
+- [ ] Système de cache des résultats
+- [ ] Support multi-langages étendu
+- [ ] Intégration CI/CD
+- [ ] Apprentissage des patterns projet
+
+---
+
+## Décisions techniques
+- Modèle : claude-sonnet-4-6 (configurable via .env)
+- Embeddings : all-MiniLM-L6-v2 (local, 80MB, gratuit)
+- Stockage index : `/projet/.ai/` (chunks.json + embeddings.faiss)
+- Réponses en diff obligatoires
+- Pipeline async natif (asyncio)
+
+---
+
+## Screens reçus
+- [2026-05-02] Cahier des charges complet
+- [2026-05-02] Architecture technique Python détaillée
