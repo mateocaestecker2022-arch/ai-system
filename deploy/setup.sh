@@ -11,7 +11,7 @@ echo "==> Update système"
 apt-get update && apt-get upgrade -y
 
 echo "==> Dépendances système"
-apt-get install -y python3.11 python3.11-venv python3-pip nginx git curl
+apt-get install -y python3 python3-venv python3-pip nginx git curl
 
 echo "==> Création utilisateur dédié"
 id -u $APP_USER &>/dev/null || useradd -m -s /bin/bash $APP_USER
@@ -22,7 +22,7 @@ cp -r . $APP_DIR
 chown -R $APP_USER:$APP_USER $APP_DIR
 
 echo "==> Environnement Python"
-sudo -u $APP_USER python3.11 -m venv $APP_DIR/.venv
+sudo -u $APP_USER python3 -m venv $APP_DIR/.venv
 sudo -u $APP_USER $APP_DIR/.venv/bin/pip install --upgrade pip
 sudo -u $APP_USER $APP_DIR/.venv/bin/pip install -r $APP_DIR/requirements.txt
 
