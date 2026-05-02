@@ -18,3 +18,6 @@ class Config:
 
     # Types de tâches qui skip le Reviewer
     SIMPLE_TASK_TYPES = {"simple_fix", "rename", "comment", "formatting"}
+
+    # Dashboard collector (optionnel)
+    COLLECTOR_URL = os.getenv("COLLECTOR_URL", "")  # ex: http://localhost:8001
