@@ -8,11 +8,13 @@ from core.config import Config
 from core.orchestrator import Orchestrator
 from core.llm import stream_llm_async
 from core.tokens import compress
+from core.logger import Logger
 from tools.indexer import build_and_save, is_index_stale
 
 app = FastAPI(title="AI System V2", version="2.0.0")
 config = Config()
 orchestrator = Orchestrator(config)
+logger = Logger()
 
 
 class RunRequest(BaseModel):
@@ -96,3 +98,8 @@ async def stream(req: RunRequest):
 async def status(project: str):
     stale = await asyncio.to_thread(is_index_stale, project)
     return {"project": project, "index_stale": stale}
+
+
+@app.get("/events")
+def events(tail: int = 50):
+    return logger.tail(tail)
