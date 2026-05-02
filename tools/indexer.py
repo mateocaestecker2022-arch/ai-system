@@ -48,7 +48,8 @@ def build_and_save(project_path: str, chunk_size: int = 1000):
     index = faiss.IndexFlatIP(vectors.shape[1])
     index.add(vectors)
 
-    faiss.write_index(index, str(ai_dir / "embeddings.faiss"))
+    # serialize_index évite les problèmes de chemins avec accents/espaces sur Windows
+    (ai_dir / "embeddings.faiss").write_bytes(faiss.serialize_index(index))
     (ai_dir / "chunks.json").write_text(json.dumps(chunks, indent=2), encoding="utf-8")
 
     return chunks
@@ -63,7 +64,7 @@ def load_index(project_path: str):
         return None, None
 
     chunks = json.loads(chunks_file.read_text(encoding="utf-8"))
-    index = faiss.read_index(str(faiss_file))
+    index = faiss.deserialize_index(np.frombuffer(faiss_file.read_bytes(), dtype=np.uint8))
     return chunks, index
 
 
