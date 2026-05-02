@@ -1,4 +1,4 @@
-# .mx — Save Point FINAL
+# .mx — Save Point
 # Projet : Plateforme multi-agents IA (SaaS)
 # Date : 2026-05-02
 # Repo ai-system  : https://github.com/mateocaestecker2022-arch/ai-system
@@ -51,6 +51,7 @@ dashboard/
 - [x] Compression 800 chars/chunk
 - [x] Budget strict 3000 tokens
 - [x] Rebuild auto (mtime)
+- [x] Fix Windows : serialize_index pour chemins avec accents/espaces
 
 ### Cache
 - [x] SHA256(task + context), TTL 1h, fichier .cache/
@@ -75,61 +76,57 @@ dashboard/
 ### Auto-Fix
 - [x] High severity en priorité, max 5 fixes, parallèle
 
-### Observabilité (events loggés)
+### Observabilité
 - [x] start, end, cache_hit, optimizer
-- [x] task_split (parallel N / sequential N)
-- [x] reviewer_skip (+ raison)
-- [x] scan_start, scan_end
-- [x] llm_call (via tracer HTTP → dashboard)
-- [x] error
+- [x] task_split, reviewer_skip (+ raison)
+- [x] scan_start, scan_end, error
 
 ### API (FastAPI v3)
 - [x] POST /auth/token — JWT par project_id
-- [x] POST /run — pipeline DEV (JWT + rate limit)
-- [x] POST /scan — pipeline SCAN
-- [x] POST /index — indexation
-- [x] POST /stream — SSE
-- [x] GET /status, GET /events, GET /health
+- [x] POST /run, /scan, /index, /stream
+- [x] GET /status, /events, /health
 - [x] Rate limit 20 RPM/projet, isolation project_id
 
 ### Dashboard SaaS
-- [x] Backend : /collect, /traces, /metrics/tokens, /metrics/latency, /metrics/overview, WS /ws
-- [x] Frontend : KPIs, BarCharts tokens/latency, TraceList, LiveFeed, FlowGraph ReactFlow, TraceTimeline
-- [x] Docker Compose
+- [x] Backend : /collect, /traces, /metrics, WS /ws
+- [x] Frontend : KPIs, charts, FlowGraph ReactFlow, timeline, live feed
+- [x] Docker Compose (postgres + backend + frontend)
+- [ ] Docker Desktop non installé sur la machine — dashboard pas encore lancé
 
 ### Déploiement Hetzner
 - [x] setup.sh, deploy.sh, nginx.conf, systemd, .env.example
 
 ---
 
+## Projets intégrés (CLAUDE.md + index FAISS)
+- `C:\Users\mateo\Documents\Projet` — MT5 Dashboard (120 855 chunks)
+- `C:\Users\mateo\Documents\site pour aidez dans les étude\apprenti-revision` — Apprenti Révision (156 chunks)
+
+---
+
 ## Évolutions futures
+- [ ] Installer Docker Desktop → lancer le dashboard
+- [ ] Nouveau projet à créer (nom + idée pas encore définis)
 - [ ] Redis queue (workers async scalables)
 - [ ] Analyse AST (découpage par fonction)
 - [ ] Scan incrémental (git diff only)
 - [ ] Alertes (seuil tokens / latence)
-- [ ] Score efficacité UI (output/input ratio)
-- [ ] Multi-langages AST (Go, Java, Rust)
 - [ ] CI/CD integration
-- [ ] Apprentissage patterns projet
 
 ---
 
 ## Décisions techniques
 - Modèle : claude-sonnet-4-6 (configurable .env)
 - Embeddings : all-MiniLM-L6-v2 (local, 80MB)
-- Vector DB : FAISS IndexFlatIP (cosine similarity L2-normalized)
-- Index stockage : /projet/.ai/ (chunks.json + embeddings.faiss)
-- Auth : JWT HS256, TTL 24h (python-jose)
+- Vector DB : FAISS — serialize_index/deserialize_index (compatible Windows accents)
+- Index stockage : /projet/.ai/
+- Auth : JWT HS256, TTL 24h
 - Rate limit : sliding window in-memory, 20 RPM/projet
 - Cache : .cache/ SHA256, TTL 1h JSON
 
 ---
 
 ## Screens reçus
-- [2026-05-02] Cahier des charges V1
-- [2026-05-02] Architecture technique Python
-- [2026-05-02] CDC V2 (Leader pattern)
-- [2026-05-02] AnalyzerAgent + AutoFix CDC
-- [2026-05-02] Dashboard SaaS CDC
+- [2026-05-02] CDC V1, architecture Python, CDC V2, AnalyzerAgent, Dashboard CDC
 - [2026-05-02] Leader V2 prod + Memory rerank + Logger
 - [2026-05-02] CDC FINAL consolidé
