@@ -20,6 +20,11 @@ class RunRequest(BaseModel):
     query: str
 
 
+class ScanRequest(BaseModel):
+    project: str
+    auto_fix: bool = False
+
+
 class IndexRequest(BaseModel):
     project: str
 
@@ -42,6 +47,15 @@ def index_project(req: IndexRequest):
 async def run(req: RunRequest):
     try:
         result = await orchestrator.run_async(req.query, req.project)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/scan")
+async def scan(req: ScanRequest):
+    try:
+        result = await orchestrator.scan_async(req.project, auto_fix=req.auto_fix)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
