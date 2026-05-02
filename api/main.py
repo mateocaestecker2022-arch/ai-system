@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
@@ -7,9 +7,10 @@ import json
 from core.config import Config
 from core.orchestrator import Orchestrator
 from core.llm import stream_llm_async
+from core.tokens import compress
 from tools.indexer import build_and_save, is_index_stale
 
-app = FastAPI(title="AI System", version="1.0.0")
+app = FastAPI(title="AI System V2", version="2.0.0")
 config = Config()
 orchestrator = Orchestrator(config)
 
@@ -25,7 +26,7 @@ class IndexRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2.0.0"}
 
 
 @app.post("/index")
@@ -48,22 +49,26 @@ async def run(req: RunRequest):
 
 @app.post("/stream")
 async def stream(req: RunRequest):
-    """Stream la réponse du Coder token par token."""
+    """Stream le diff du premier coder token par token (SSE)."""
     async def generate():
-        # Planner + Memory
         tasks = await asyncio.to_thread(orchestrator.planner.plan, req.query)
-        context = await asyncio.to_thread(
-            orchestrator.memory.get_context, req.project, tasks
-        )
+        if not tasks:
+            yield "data: [DONE]\n\n"
+            return
 
-        tasks_str = "\n".join(
-            f"[{t['type'].upper()}] {t['description']} → {t['target']}"
-            for t in tasks
+        task = tasks[0]
+        context = await asyncio.to_thread(
+            orchestrator.memory.get_context_for_task, req.project, task
         )
-        context_str = "\n---\n".join(context) if context else "No context."
+        context_str = compress("\n---\n".join(context), config.MAX_CONTEXT_TOKENS)
 
         from agents.coder import CODER_PROMPT
-        prompt = CODER_PROMPT.format(tasks=tasks_str, context=context_str)
+        prompt = CODER_PROMPT.format(
+            type=task.get("type", "modify"),
+            description=task["description"],
+            target=task.get("target", "unknown"),
+            context=context_str,
+        )
 
         async for chunk in stream_llm_async(prompt, config):
             yield f"data: {json.dumps({'text': chunk})}\n\n"
