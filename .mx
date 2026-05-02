@@ -1,91 +1,135 @@
-# .mx — Save Point
-# Projet : Système d'agents IA
+# .mx — Save Point FINAL
+# Projet : Plateforme multi-agents IA (SaaS)
 # Date : 2026-05-02
-# Serveur : Hetzner
-# Repo : https://github.com/mateocaestecker2022-arch/ai-system
+# Repo ai-system  : https://github.com/mateocaestecker2022-arch/ai-system
+# Repo dashboard  : https://github.com/mateocaestecker2022-arch/ai-dashboard
+# Serveur         : Hetzner
 
 ---
 
-## Contexte du projet
+## Architecture actuelle
 
-Système multi-agents centralisé pour optimiser le développement IA.
-- Réduire la consommation de tokens
-- Ne jamais envoyer un projet complet à un modèle
-- Agents mutualisés, projets séparés
-- CLI : `python run.py analyze|fix|optimize|index|serve --project "/chemin"`
-
-Structure actuelle :
 ```
 ai-system/
-  agents/        planner, coder, reviewer, memory
-  core/          orchestrator (async), config, llm
-  tools/         indexer, search (FAISS), embedder, file_loader
-  api/           FastAPI (run, stream SSE, index, status, health)
-  deploy/        setup.sh, deploy.sh, nginx.conf, ai-system.service
-  run.py
-  requirements.txt
+  agents/     planner, coder (diff max 20 lignes), reviewer (smart skip),
+              memory (FAISS+rerank), analyzer (OWASP)
+  core/       orchestrator (Leader V2), config, llm (sync+async+stream),
+              cache, tokens, tracer, logger, task_optimizer, auto_fix
+  tools/      indexer, search, embedder, file_loader, file_selector
+  api/        main (FastAPI v3), auth (JWT HS256), rate_limit (20 RPM)
+  deploy/     setup.sh, deploy.sh, nginx.conf, ai-system.service
+  run.py      CLI : run|fix|optimize|scan|index|serve
+
+dashboard/
+  backend/    FastAPI + PostgreSQL — /collect, /traces, /metrics, /ws
+  frontend/   Next.js 14 dark — dashboard, flow graph, timeline, live feed
+  docker-compose.yml
 ```
 
 ---
 
-## Squelette des features
+## Features — état final
 
-### Agents
-- [x] **Agent Planner** — JSON structuré (id, description, target, type, depends_on)
-- [x] **Agent Coder** — diff format, async
-- [x] **Agent Reviewer** — vérif sécurité + bugs, async
-- [x] **Agent Memory** — contexte projet via embeddings FAISS
+### Leader (Orchestrator)
+- [x] Python pur, zéro LLM direct
+- [x] Routing DEV / SCAN / INDEX
+- [x] Parallélisation tâches indépendantes
+- [x] Sequential pour dépendances
+- [x] Logging JSONL + HTTP tracer à chaque étape
 
-### Gestion du contexte
-- [x] Indexeur de fichiers projet (chunking 1000 chars)
-- [x] Stockage FAISS + chunks.json dans `/projet/.ai/`
-- [x] Détection index obsolète (mtime)
-- [x] Limitation à 5 fichiers max par requête
+### Planner
+- [x] JSON structuré (id, description, target, type, depends_on)
+- [x] Reçoit uniquement la query (aucun code)
 
-### Recherche
-- [x] Recherche vectorielle (sentence-transformers all-MiniLM-L6-v2)
-- [x] Cosine similarity via FAISS IndexFlatIP
-- [ ] Recherche hybride (keyword + vectoriel)
+### Task Graph Optimizer
+- [x] Merge tâches (Jaccard ≥ 0.85 OU même target+type)
+- [x] Split parallel / sequential
+- [x] Stats LLM calls saved
 
-### Pipeline
-- [x] Planner + Memory en parallèle (asyncio.gather)
-- [x] Coder après Memory
-- [x] Reviewer après Coder
-- [ ] Gestion des dépendances entre tâches (depends_on)
+### Memory (FAISS + Rerank)
+- [x] FAISS top-30 → rerank keyword → top-5
+- [x] Compression 800 chars/chunk
+- [x] Budget strict 3000 tokens
+- [x] Rebuild auto (mtime)
 
-### API FastAPI
-- [x] POST /run — pipeline complet
-- [x] POST /stream — SSE token par token
-- [x] POST /index — indexe un projet
-- [x] GET /status — vérifie fraîcheur de l'index
-- [x] GET /health
+### Cache
+- [x] SHA256(task + context), TTL 1h, fichier .cache/
+- [x] Event cache_hit loggé
+
+### Coder
+- [x] Unified diff only
+- [x] Max 20 changed lines enforced (tronque + tag)
+- [x] Context compressé
+
+### Reviewer
+- [x] Smart skip (simple_fix, rename, comment, formatting)
+- [x] Event reviewer_skip loggé avec raison
+- [x] Diff in → Diff out
+
+### Analyzer (SCAN)
+- [x] OWASP subset (injection, auth, XSS, access control, config)
+- [x] Cache MD5 par fichier
+- [x] Analyse parallèle
+- [x] Tri high→medium→low
+
+### Auto-Fix
+- [x] High severity en priorité, max 5 fixes, parallèle
+
+### Observabilité (events loggés)
+- [x] start, end, cache_hit, optimizer
+- [x] task_split (parallel N / sequential N)
+- [x] reviewer_skip (+ raison)
+- [x] scan_start, scan_end
+- [x] llm_call (via tracer HTTP → dashboard)
+- [x] error
+
+### API (FastAPI v3)
+- [x] POST /auth/token — JWT par project_id
+- [x] POST /run — pipeline DEV (JWT + rate limit)
+- [x] POST /scan — pipeline SCAN
+- [x] POST /index — indexation
+- [x] POST /stream — SSE
+- [x] GET /status, GET /events, GET /health
+- [x] Rate limit 20 RPM/projet, isolation project_id
+
+### Dashboard SaaS
+- [x] Backend : /collect, /traces, /metrics/tokens, /metrics/latency, /metrics/overview, WS /ws
+- [x] Frontend : KPIs, BarCharts tokens/latency, TraceList, LiveFeed, FlowGraph ReactFlow, TraceTimeline
+- [x] Docker Compose
 
 ### Déploiement Hetzner
-- [x] setup.sh — Ubuntu 22.04, Python, nginx, systemd
-- [x] ai-system.service — uvicorn 2 workers, restart auto
-- [x] nginx.conf — reverse proxy + support SSE
-- [x] deploy.sh — git pull + restart
+- [x] setup.sh, deploy.sh, nginx.conf, systemd, .env.example
 
-### Évolutions futures
-- [ ] Interface graphique
-- [ ] Recherche hybride (keyword + vectoriel)
-- [ ] Gestion depends_on dans le pipeline
-- [ ] Système de cache des résultats
-- [ ] Support multi-langages étendu
-- [ ] Intégration CI/CD
-- [ ] Apprentissage des patterns projet
+---
+
+## Évolutions futures
+- [ ] Redis queue (workers async scalables)
+- [ ] Analyse AST (découpage par fonction)
+- [ ] Scan incrémental (git diff only)
+- [ ] Alertes (seuil tokens / latence)
+- [ ] Score efficacité UI (output/input ratio)
+- [ ] Multi-langages AST (Go, Java, Rust)
+- [ ] CI/CD integration
+- [ ] Apprentissage patterns projet
 
 ---
 
 ## Décisions techniques
-- Modèle : claude-sonnet-4-6 (configurable via .env)
-- Embeddings : all-MiniLM-L6-v2 (local, 80MB, gratuit)
-- Stockage index : `/projet/.ai/` (chunks.json + embeddings.faiss)
-- Réponses en diff obligatoires
-- Pipeline async natif (asyncio)
+- Modèle : claude-sonnet-4-6 (configurable .env)
+- Embeddings : all-MiniLM-L6-v2 (local, 80MB)
+- Vector DB : FAISS IndexFlatIP (cosine similarity L2-normalized)
+- Index stockage : /projet/.ai/ (chunks.json + embeddings.faiss)
+- Auth : JWT HS256, TTL 24h (python-jose)
+- Rate limit : sliding window in-memory, 20 RPM/projet
+- Cache : .cache/ SHA256, TTL 1h JSON
 
 ---
 
 ## Screens reçus
-- [2026-05-02] Cahier des charges complet
-- [2026-05-02] Architecture technique Python détaillée
+- [2026-05-02] Cahier des charges V1
+- [2026-05-02] Architecture technique Python
+- [2026-05-02] CDC V2 (Leader pattern)
+- [2026-05-02] AnalyzerAgent + AutoFix CDC
+- [2026-05-02] Dashboard SaaS CDC
+- [2026-05-02] Leader V2 prod + Memory rerank + Logger
+- [2026-05-02] CDC FINAL consolidé

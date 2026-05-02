@@ -60,7 +60,9 @@ class Orchestrator:
             raise
 
         # Reviewer (smart skip)
-        if not self._should_skip_reviewer(task):
+        if self._should_skip_reviewer(task):
+            self.logger.log({"event": "reviewer_skip", "trace_id": trace_id, "task_id": task.get("id"), "reason": task.get("type")})
+        else:
             span_r = self.tracer.span(trace_id, "Reviewer", project_id, task.get("id"))
             try:
                 diff = await self.reviewer.review(diff)
@@ -106,6 +108,7 @@ class Orchestrator:
         # Execute — parallèle pour indépendants, séquentiel pour dépendants
         independent = [t for t in optimized_tasks if not t.get("depends_on")]
         dependent = [t for t in optimized_tasks if t.get("depends_on")]
+        self.logger.log({"event": "task_split", "trace_id": trace_id, "parallel": len(independent), "sequential": len(dependent)})
         results = []
 
         if independent:
