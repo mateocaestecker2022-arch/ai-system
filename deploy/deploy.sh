@@ -9,7 +9,7 @@ APP_USER="ai-system"
 
 echo "==> Pull dernières modifications"
 cd $APP_DIR
-git pull origin main
+git pull origin master
 
 echo "==> Mise à jour dépendances"
 sudo -u $APP_USER $APP_DIR/.venv/bin/pip install -r requirements.txt --quiet
